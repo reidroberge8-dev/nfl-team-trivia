@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no">
+<title>NFL Trivia</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="NFL Trivia">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0b1220">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<style>
+  :root {
+    --bg: #0b1220;
+    --panel: #141d31;
+    --panel2: #1b2740;
+    --accent: #d50a0a;
+    --accent-dark: #a80707;
+    --green: #1e8e3e;
+    --red: #c62828;
+    --text: #eef2f8;
+    --muted: #9aa8c2;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+    overscroll-behavior-y: none;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  /* ---- Top app bar ---- */
+  .appbar {
+    flex: 0 0 auto;
+    padding: calc(var(--safe-top) + 10px) 16px 10px;
+    background: linear-gradient(180deg, #1a2540, #101a30);
+    border-bottom: 1px solid #24314f;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    z-index: 20;
+  }
+  .appbar .title { font-size: 1.05rem; font-weight: 700; letter-spacing: 0.2px; }
+  .appbar .title small { display:block; font-size: 0.68rem; color: var(--muted); font-weight: 500; }
+  .score-chip {
+    background: var(--panel2);
+    border: 1px solid #2a3a5c;
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .score-chip .acc { color: #6fd08a; margin-left: 4px; font-weight: 600; }
+
+  /* ---- Scrollable content ---- */
+  .content {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 14px 14px calc(120px + var(--safe-bottom));
+  }
+
+  .picker-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--panel);
+    border: 1px solid #24314f;
+    border-radius: 14px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    color: var(--text);
+    font-size: 1rem;
+    font-weight: 600;
+  }
+  .picker-btn img { width: 40px; height: 40px; object-fit: contain; }
+  .picker-btn .pb-sub { font-size: 0.75rem; color: var(--muted); font-weight: 500; }
+  .picker-btn .chev { margin-left: auto; color: var(--muted); font-size: 1.2rem; }
+
+  .card {
+    background: var(--panel);
+    border-radius: 16px;
+    padding: 16px;
+    border: 1px solid #24314f;
+  }
+  .field { margin-bottom: 12px; }
+  .field label {
+    display: block;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--muted);
+    margin-bottom: 5px;
+    font-weight: 700;
+  }
+  .field input {
+    width: 100%;
+    padding: 13px 14px;
+    border-radius: 10px;
+    border: 1px solid #2a3a5c;
+    background: #0f1729;
+    color: var(--text);
+    font-size: 16px; /* prevents iOS auto-zoom on focus */
+  }
+  .field input:focus { outline: none; border-color: var(--accent); }
+  .field.correct input { border-color: var(--green); background: #10281a; }
+  .field.incorrect input { border-color: var(--red); background: #2a1414; }
+  .field .answer-note { font-size: 0.8rem; margin-top: 5px; }
+  .field.correct .answer-note { color: #6fd08a; }
+  .field.incorrect .answer-note { color: #ff8a8a; }
+
+  .result-banner {
+    text-align: center;
+    font-size: 1rem;
+    font-weight: 700;
+    margin: 4px 0 14px;
+    padding: 12px;
+    border-radius: 12px;
+  }
+  .result-banner.great { background: #10281a; color: #6fd08a; }
+  .result-banner.ok { background: #2a2410; color: #e6c667; }
+  .result-banner.rough { background: #2a1414; color: #ff8a8a; }
+
+  .history { margin-top: 20px; font-size: 0.85rem; color: var(--muted); }
+  .history table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+  .history th, .history td { text-align: left; padding: 6px 4px; border-bottom: 1px solid #1e2a45; }
+
+  .empty-state { text-align: center; color: var(--muted); padding: 60px 20px; font-size: 0.95rem; }
+  .empty-state .big { font-size: 2.4rem; margin-bottom: 10px; }
+
+  /* ---- Bottom action bar ---- */
+  .actionbar {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    padding: 10px 14px calc(10px + var(--safe-bottom));
+    background: linear-gradient(180deg, rgba(16,22,38,0.85), #0b1220 40%);
+    backdrop-filter: blur(10px);
+    display: flex;
+    gap: 10px;
+    z-index: 30;
+    border-top: 1px solid #24314f;
+  }
+  .actionbar button {
+    flex: 1;
+    padding: 14px 10px;
+    border-radius: 12px;
+    border: 1px solid #2a3a5c;
+    background: var(--panel2);
+    color: var(--text);
+    font-size: 0.95rem;
+    font-weight: 700;
+  }
+  .actionbar button.primary { background: var(--accent); border-color: var(--accent); }
+  .actionbar button:active { transform: scale(0.97); }
+  .actionbar button:disabled { opacity: 0.4; }
+
+  /* ---- Bottom sheet ---- */
+  .sheet-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 40;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .sheet-backdrop.open { opacity: 1; pointer-events: auto; }
+  .sheet {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    background: #141d31;
+    border-radius: 20px 20px 0 0;
+    z-index: 41;
+    transform: translateY(105%);
+    transition: transform 0.25s cubic-bezier(.2,.8,.2,1);
+    max-height: 78vh;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: var(--safe-bottom);
+    box-shadow: 0 -10px 40px rgba(0,0,0,0.5);
+  }
+  .sheet.open { transform: translateY(0); }
+  .sheet-handle { width: 40px; height: 5px; background: #3a4a6c; border-radius: 3px; margin: 10px auto 6px; }
+  .sheet-title { text-align: center; font-weight: 700; padding: 4px 16px 10px; border-bottom: 1px solid #24314f; }
+  .sheet-actions { display: flex; gap: 8px; padding: 12px 14px; }
+  .sheet-actions button {
+    flex: 1; padding: 12px; border-radius: 10px; border: 1px solid #2a3a5c;
+    background: var(--panel2); color: var(--text); font-weight: 700; font-size: 0.85rem;
+  }
+  .sheet-actions button.primary { background: var(--accent); border-color: var(--accent); }
+  .sheet-list { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .sheet-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid #1e2a45;
+    font-size: 0.95rem;
+  }
+  .sheet-item img { width: 30px; height: 30px; object-fit: contain; }
+  .sheet-item:active { background: #1b2740; }
+</style>
+</head>
+<body>
+
+  <div class="appbar">
+    <div class="title">NFL Team Trivia<small id="progressLine">Tap below to start</small></div>
+    <div class="score-chip"><span id="scoreLine">0/0</span><span class="acc" id="accLine"></span></div>
+  </div>
+
+  <div class="content" id="content">
+    <button class="picker-btn" id="openSheetBtn">
+      <img id="pickerLogo" src="" style="display:none;">
+      <div>
+        <div id="pickerLabel">Choose a Team</div>
+        <div class="pb-sub" id="pickerSub">Random, Full League, or pick one</div>
+      </div>
+      <span class="chev">›</span>
+    </button>
+
+    <div id="card"></div>
+
+    <div class="history" id="history" style="display:none;">
+      <strong>Team History</strong>
+      <table><thead><tr><th>Team</th><th>Score</th></tr></thead><tbody id="historyBody"></tbody></table>
+    </div>
+  </div>
+
+  <div class="actionbar" id="actionbar" style="display:none;">
+    <button id="checkBtn" class="primary">Check Answers</button>
+    <button id="revealBtn">Reveal</button>
+  </div>
+
+  <div class="sheet-backdrop" id="sheetBackdrop"></div>
+  <div class="sheet" id="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Pick a Team</div>
+    <div class="sheet-actions">
+      <button class="primary" id="randomBtnSheet">🎲 Random</button>
+      <button id="leagueBtnSheet">🏈 Full League</button>
+      <button id="resetBtnSheet">Reset Score</button>
+    </div>
+    <div class="sheet-list" id="sheetList"></div>
+  </div>
+
+<script>
+const TEAMS = [{"name": "Arizona Cardinals", "abbr": "ari", "qb": "Jacoby Brissett", "rb1": "Jeremiyah Love", "rb2": "Tyler Allgeier", "wr1": "Marvin Harrison Jr.", "wr2": "Michael Wilson", "te": "Trey McBride", "coach": "Mike LaFleur", "owner": "Michael Bidwill", "qb2": "Gardner Minshew II"}, {"name": "Atlanta Falcons", "abbr": "atl", "qb": "Tua Tagovailoa", "rb1": "Bijan Robinson", "rb2": "Brian Robinson Jr.", "wr1": "Drake London", "wr2": "Jahan Dotson", "te": "Kyle Pitts Sr.", "coach": "Kevin Stefanski", "owner": "Arthur Blank", "qb2": "Michael Penix Jr."}, {"name": "Baltimore Ravens", "abbr": "bal", "qb": "Lamar Jackson", "rb1": "Derrick Henry", "rb2": "Justice Hill", "wr1": "Zay Flowers", "wr2": "Rashod Bateman", "te": "Mark Andrews", "coach": "Jesse Minter", "owner": "Steve Bisciotti", "qb2": "Tyler Huntley"}, {"name": "Buffalo Bills", "abbr": "buf", "qb": "Josh Allen", "rb1": "James Cook III", "rb2": "Ray Davis", "wr1": "DJ Moore", "wr2": "Khalil Shakir", "te": "Dalton Kincaid", "coach": "Joe Brady", "owner": "Terry Pegula", "qb2": "Kyle Allen"}, {"name": "Carolina Panthers", "abbr": "car", "qb": "Bryce Young", "rb1": "Chuba Hubbard", "rb2": "Jonathon Brooks", "wr1": "Tetairoa McMillan", "wr2": "Jalen Coker", "te": "Tommy Tremble", "coach": "Dave Canales", "owner": "David Tepper", "qb2": "Kenny Pickett"}, {"name": "Chicago Bears", "abbr": "chi", "qb": "Caleb Williams", "rb1": "D'Andre Swift", "rb2": "Kyle Monangai", "wr1": "Rome Odunze", "wr2": "Luther Burden III", "te": "Colston Loveland", "coach": "Ben Johnson", "owner": "George McCaskey", "qb2": "Tyson Bagent"}, {"name": "Cincinnati Bengals", "abbr": "cin", "qb": "Joe Burrow", "rb1": "Chase Brown", "rb2": "Samaje Perine", "wr1": "Ja'Marr Chase", "wr2": "Tee Higgins", "te": "Mike Gesicki", "coach": "Zac Taylor", "owner": "Mike Brown", "qb2": "Joe Flacco"}, {"name": "Cleveland Browns", "abbr": "cle", "qb": "Deshaun Watson", "rb1": "Quinshon Judkins", "rb2": "Dylan Sampson", "wr1": "Jerry Jeudy", "wr2": "KC Concepcion", "te": "Harold Fannin Jr.", "coach": "Todd Monken", "owner": "Jimmy Haslam", "qb2": "Shedeur Sanders"}, {"name": "Dallas Cowboys", "abbr": "dal", "qb": "Dak Prescott", "rb1": "Javonte Williams", "rb2": "Malik Davis", "wr1": "CeeDee Lamb", "wr2": "George Pickens", "te": "Jake Ferguson", "coach": "Brian Schottenheimer", "owner": "Jerry Jones", "qb2": "Sam Howell"}, {"name": "Denver Broncos", "abbr": "den", "qb": "Bo Nix", "rb1": "J.K. Dobbins", "rb2": "RJ Harvey", "wr1": "Jaylen Waddle", "wr2": "Courtland Sutton", "te": "Evan Engram", "coach": "Sean Payton", "owner": "Rob Walton", "qb2": "Jarrett Stidham"}, {"name": "Detroit Lions", "abbr": "det", "qb": "Jared Goff", "rb1": "Jahmyr Gibbs", "rb2": "Sione Vaki", "wr1": "Amon-Ra St. Brown", "wr2": "Jameson Williams", "te": "Sam LaPorta", "coach": "Dan Campbell", "owner": "Sheila Ford Hamp", "qb2": "Joshua Dobbs"}, {"name": "Green Bay Packers", "abbr": "gb", "qb": "Jordan Love", "rb1": "MarShawn Lloyd", "rb2": "Chris Brooks", "wr1": "Christian Watson", "wr2": "Jayden Reed", "te": "Tucker Kraft", "coach": "Matt LaFleur", "owner": "Green Bay Packers, Inc. (publicly owned)", "ownerAlt": ["packers inc", "green bay packers", "publicly owned", "public corporation", "shareholders", "mark murphy", "ed policy"], "qb2": "Tyrod Taylor"}, {"name": "Houston Texans", "abbr": "hou", "qb": "C.J. Stroud", "rb1": "David Montgomery", "rb2": "Woody Marks", "wr1": "Nico Collins", "wr2": "Kayshon Boutte", "te": "Dalton Schultz", "coach": "DeMeco Ryans", "owner": "Cal McNair", "qb2": "Davis Mills"}, {"name": "Indianapolis Colts", "abbr": "ind", "qb": "Daniel Jones", "rb1": "Jonathan Taylor", "rb2": "Seth McGowan", "wr1": "Alec Pierce", "wr2": "Josh Downs", "te": "Tyler Warren", "coach": "Shane Steichen", "owner": "Carlie Irsay-Gordon", "qb2": "Anthony Richardson Sr."}, {"name": "Jacksonville Jaguars", "abbr": "jax", "qb": "Trevor Lawrence", "rb1": "Bhayshul Tuten", "rb2": "Chris Rodriguez Jr.", "wr1": "Brian Thomas Jr.", "wr2": "Parker Washington", "te": "Brenton Strange", "coach": "Liam Coen", "owner": "Shahid Khan", "qb2": "Quinn Ewers"}, {"name": "Kansas City Chiefs", "abbr": "kc", "qb": "Patrick Mahomes", "rb1": "Kenneth Walker III", "rb2": "Emmett Johnson", "wr1": "Rashee Rice", "wr2": "Xavier Worthy", "te": "Travis Kelce", "coach": "Andy Reid", "owner": "Clark Hunt", "qb2": "Justin Fields"}, {"name": "Las Vegas Raiders", "abbr": "lv", "qb": "Kirk Cousins", "rb1": "Ashton Jeanty", "rb2": "Mike Washington Jr.", "wr1": "Tre Tucker", "wr2": "Jalen Nailor", "te": "Brock Bowers", "coach": "Klint Kubiak", "owner": "Mark Davis", "qb2": "Fernando Mendoza"}, {"name": "Los Angeles Chargers", "abbr": "lac", "qb": "Justin Herbert", "rb1": "Omarion Hampton", "rb2": "Keaton Mitchell", "wr1": "Ladd McConkey", "wr2": "Quentin Johnston", "te": "Charlie Kolar", "coach": "Jim Harbaugh", "owner": "Dean Spanos", "qb2": "Trey Lance"}, {"name": "Los Angeles Rams", "abbr": "lar", "qb": "Matthew Stafford", "rb1": "Kyren Williams", "rb2": "Blake Corum", "wr1": "Puka Nacua", "wr2": "Davante Adams", "te": "Colby Parkinson", "coach": "Sean McVay", "owner": "Stan Kroenke", "qb2": "Stetson Bennett IV"}, {"name": "Miami Dolphins", "abbr": "mia", "qb": "Malik Willis", "rb1": "De'Von Achane", "rb2": "Jaylen Wright", "wr1": "Malik Washington", "wr2": "Caleb Douglas", "te": "Greg Dulcich", "coach": "Jeff Hafley", "owner": "Stephen Ross", "qb2": "Kyle McCord"}, {"name": "Minnesota Vikings", "abbr": "min", "qb": "Kyler Murray", "rb1": "Aaron Jones Sr.", "rb2": "Jordan Mason", "wr1": "Justin Jefferson", "wr2": "Jordan Addison", "te": "T.J. Hockenson", "coach": "Kevin O'Connell", "owner": "Zygi Wilf", "qb2": "Carson Wentz"}, {"name": "New England Patriots", "abbr": "ne", "qb": "Drake Maye", "rb1": "Rhamondre Stevenson", "rb2": "TreVeyon Henderson", "wr1": "A.J. Brown", "wr2": "Romeo Doubs", "te": "Hunter Henry", "coach": "Mike Vrabel", "owner": "Robert Kraft", "qb2": "Tommy DeVito"}, {"name": "New Orleans Saints", "abbr": "no", "qb": "Tyler Shough", "rb1": "Travis Etienne Jr.", "rb2": "Alvin Kamara", "wr1": "Chris Olave", "wr2": "Devaughn Vele", "te": "Juwan Johnson", "coach": "Kellen Moore", "owner": "Gayle Benson", "qb2": "Spencer Rattler"}, {"name": "New York Giants", "abbr": "nyg", "qb": "Jaxson Dart", "rb1": "Cam Skattebo", "rb2": "Najee Harris", "wr1": "Malik Nabers", "wr2": "Odell Beckham Jr.", "te": "Isaiah Likely", "coach": "John Harbaugh", "owner": "John Mara", "qb2": "Jameis Winston"}, {"name": "New York Jets", "abbr": "nyj", "qb": "Geno Smith", "rb1": "Breece Hall", "rb2": "Braelon Allen", "wr1": "Garrett Wilson", "wr2": "Adonai Mitchell", "te": "Mason Taylor", "coach": "Aaron Glenn", "owner": "Woody Johnson", "qb2": "Cade Klubnik"}, {"name": "Philadelphia Eagles", "abbr": "phi", "qb": "Jalen Hurts", "rb1": "Saquon Barkley", "rb2": "Tank Bigsby", "wr1": "DeVonta Smith", "wr2": "Dontayvion Wicks", "te": "Dallas Goedert", "coach": "Nick Sirianni", "owner": "Jeffrey Lurie", "qb2": "Andy Dalton"}, {"name": "Pittsburgh Steelers", "abbr": "pit", "qb": "Aaron Rodgers", "rb1": "Jaylen Warren", "rb2": "Rico Dowdle", "wr1": "DK Metcalf", "wr2": "Michael Pittman Jr.", "te": "Pat Freiermuth", "coach": "Mike McCarthy", "owner": "Art Rooney II", "qb2": "Mason Rudolph"}, {"name": "San Francisco 49ers", "abbr": "sf", "qb": "Brock Purdy", "rb1": "Christian McCaffrey", "rb2": "Kaelon Black", "wr1": "Mike Evans", "wr2": "Deebo Samuel Sr.", "te": "George Kittle", "coach": "Kyle Shanahan", "owner": "Jed York", "qb2": "Mac Jones"}, {"name": "Seattle Seahawks", "abbr": "sea", "qb": "Sam Darnold", "rb1": "Jadarian Price", "rb2": "George Holani", "wr1": "Jaxon Smith-Njigba", "wr2": "Rashid Shaheed", "te": "AJ Barner", "coach": "Mike Macdonald", "owner": "Neeru Khosla", "qb2": "Drew Lock"}, {"name": "Tampa Bay Buccaneers", "abbr": "tb", "qb": "Baker Mayfield", "rb1": "Bucky Irving", "rb2": "Kenny Gainwell", "wr1": "Emeka Egbuka", "wr2": "Chris Godwin Jr.", "te": "Cade Otton", "coach": "Todd Bowles", "owner": "Bryan Glazer", "qb2": "Jalon Daniels"}, {"name": "Tennessee Titans", "abbr": "ten", "qb": "Cam Ward", "rb1": "Tony Pollard", "rb2": "Tyjae Spears", "wr1": "Carnell Tate", "wr2": "Wan'Dale Robinson", "te": "Gunnar Helm", "coach": "Robert Saleh", "owner": "Amy Adams Strunk", "qb2": "Mitchell Trubisky"}, {"name": "Washington Commanders", "abbr": "wsh", "qb": "Jayden Daniels", "rb1": "Jacory Croskey-Merritt", "rb2": "Rachaad White", "wr1": "Terry McLaurin", "wr2": "Stefon Diggs", "te": "Chig Okonkwo", "coach": "Dan Quinn", "owner": "Josh Harris", "qb2": "Marcus Mariota"}];
+
+const FIELDS = [
+  {key: 'qb',    label: 'QB1'},
+  {key: 'qb2',   label: 'QB2'},
+  {key: 'rb1',   label: 'RB1'},
+  {key: 'rb2',   label: 'RB2'},
+  {key: 'wr1',   label: 'WR1'},
+  {key: 'wr2',   label: 'WR2'},
+  {key: 'te',    label: 'TE1'},
+  {key: 'coach', label: 'Head Coach'},
+  {key: 'owner', label: 'Owner'}
+];
+
+let state = {
+  correct: 0, total: 0,
+  teamsPlayed: new Set(),
+  history: [],
+  currentTeam: null,
+  leagueMode: false,
+  leagueQueue: []
+};
+
+function normalize(s) {
+  return (s || '')
+    .toLowerCase()
+    .replace(/[.'’\-]/g, '')
+    .replace(/\b(jr|sr|ii|iii|iv|v)\b/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+function lastName(s) {
+  const parts = normalize(s).split(' ').filter(Boolean);
+  return parts.length ? parts[parts.length - 1] : '';
+}
+function isCorrect(input, team, fieldKey) {
+  const ni = normalize(input);
+  if (!ni) return false;
+  const answer = team[fieldKey];
+  const acceptable = [answer];
+  if (fieldKey === 'owner' && team.ownerAlt) acceptable.push(...team.ownerAlt);
+  for (const a of acceptable) {
+    const na = normalize(a);
+    if (!na) continue;
+    if (ni === na) return true;
+    const li = lastName(input), la = lastName(a);
+    if (li.length > 2 && li === la) return true;
+    if (ni.length >= 4 && (na.includes(ni) || ni.includes(na))) return true;
+  }
+  return false;
+}
+function logoUrl(abbr) { return `https://a.espncdn.com/i/teamlogos/nfl/500/${abbr}.png`; }
+
+// ---- Bottom sheet ----
+const sheet = document.getElementById('sheet');
+const sheetBackdrop = document.getElementById('sheetBackdrop');
+const sheetList = document.getElementById('sheetList');
+
+TEAMS.forEach((t, i) => {
+  const item = document.createElement('div');
+  item.className = 'sheet-item';
+  const img = document.createElement('img');
+  img.src = logoUrl(t.abbr);
+  img.onerror = () => { img.style.display = 'none'; };
+  item.appendChild(img);
+  const span = document.createElement('span');
+  span.textContent = t.name;
+  item.appendChild(span);
+  item.onclick = () => { closeSheet(); state.leagueMode = false; renderCard(t); };
+  sheetList.appendChild(item);
+});
+
+function openSheet() { sheet.classList.add('open'); sheetBackdrop.classList.add('open'); }
+function closeSheet() { sheet.classList.remove('open'); sheetBackdrop.classList.remove('open'); }
+
+document.getElementById('openSheetBtn').onclick = openSheet;
+sheetBackdrop.onclick = closeSheet;
+
+document.getElementById('randomBtnSheet').onclick = () => {
+  closeSheet();
+  state.leagueMode = false;
+  const t = TEAMS[Math.floor(Math.random() * TEAMS.length)];
+  renderCard(t);
+};
+document.getElementById('leagueBtnSheet').onclick = () => {
+  closeSheet();
+  state.leagueMode = true;
+  const shuffled = TEAMS.slice().sort(() => Math.random() - 0.5);
+  state.leagueQueue = shuffled.slice(1);
+  renderCard(shuffled[0]);
+};
+document.getElementById('resetBtnSheet').onclick = () => {
+  closeSheet();
+  state = { correct: 0, total: 0, teamsPlayed: new Set(), history: [], currentTeam: null, leagueMode: false, leagueQueue: [] };
+  updateScoreboard();
+  updateHistory();
+  showEmptyState();
+};
+
+function showEmptyState() {
+  document.getElementById('card').innerHTML = '<div class="empty-state"><div class="big">🏈</div>Tap "Choose a Team" above<br>to start the quiz.</div>';
+  document.getElementById('actionbar').style.display = 'none';
+  document.getElementById('pickerLabel').textContent = 'Choose a Team';
+  document.getElementById('pickerSub').textContent = 'Random, Full League, or pick one';
+  document.getElementById('pickerLogo').style.display = 'none';
+  document.getElementById('progressLine').textContent = 'Tap below to start';
+}
+
+function renderCard(team) {
+  state.currentTeam = team;
+  document.getElementById('pickerLabel').textContent = team.name;
+  document.getElementById('pickerSub').textContent = state.leagueMode
+    ? `Full League Mode — Team ${32 - state.leagueQueue.length} of 32`
+    : 'Single team quiz';
+  document.getElementById('progressLine').textContent = state.leagueMode
+    ? `League: ${32 - state.leagueQueue.length}/32`
+    : team.name;
+  const logo = document.getElementById('pickerLogo');
+  logo.src = logoUrl(team.abbr);
+  logo.style.display = 'inline-block';
+  logo.onerror = () => { logo.style.display = 'none'; };
+
+  const card = document.getElementById('card');
+  card.innerHTML = '';
+  const cardEl = document.createElement('div');
+  cardEl.className = 'card';
+
+  FIELDS.forEach(f => {
+    const field = document.createElement('div');
+    field.className = 'field';
+    field.id = 'field-' + f.key;
+    const label = document.createElement('label');
+    label.textContent = f.label;
+    field.appendChild(label);
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.autocomplete = 'off';
+    input.autocapitalize = 'words';
+    input.dataset.key = f.key;
+    input.placeholder = 'Type a name...';
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } });
+    field.appendChild(input);
+    const note = document.createElement('div');
+    note.className = 'answer-note';
+    note.style.display = 'none';
+    field.appendChild(note);
+    cardEl.appendChild(field);
+  });
+  card.appendChild(cardEl);
+
+  const banner = document.createElement('div');
+  banner.id = 'resultBanner';
+  card.appendChild(banner);
+
+  const nextWrap = document.createElement('div');
+  nextWrap.id = 'nextWrap';
+  nextWrap.style.marginTop = '10px';
+  card.appendChild(nextWrap);
+
+  document.getElementById('actionbar').style.display = 'flex';
+  document.getElementById('checkBtn').disabled = false;
+  document.getElementById('revealBtn').disabled = false;
+  document.getElementById('content').scrollTop = 0;
+}
+
+function checkAnswers(reveal) {
+  const team = state.currentTeam;
+  if (!team) return;
+  let correctCount = 0;
+
+  FIELDS.forEach(f => {
+    const field = document.getElementById('field-' + f.key);
+    const input = field.querySelector('input');
+    const note = field.querySelector('.answer-note');
+
+    if (field.dataset.scored === 'true') {
+      correctCount += field.dataset.result === 'correct' ? 1 : 0;
+      return;
+    }
+    const val = input.value.trim();
+    let ok;
+    if (reveal) { ok = false; }
+    else { if (!val) return; ok = isCorrect(val, team, f.key); }
+
+    field.classList.remove('correct', 'incorrect');
+    field.classList.add(ok ? 'correct' : 'incorrect');
+    field.dataset.scored = 'true';
+    field.dataset.result = ok ? 'correct' : 'incorrect';
+    input.disabled = true;
+    note.style.display = 'block';
+    note.textContent = ok ? `Correct: ${team[f.key]}` : `Answer: ${team[f.key]}`;
+    if (ok) correctCount++;
+  });
+
+  const doneAll = FIELDS.every(f => document.getElementById('field-' + f.key).dataset.scored === 'true');
+  if (doneAll) finalizeTeam(team, correctCount);
+}
+
+function finalizeTeam(team, correctCount) {
+  state.correct += correctCount;
+  state.total += FIELDS.length;
+  state.teamsPlayed.add(team.name);
+  state.history.push({name: team.name, score: `${correctCount}/${FIELDS.length}`});
+  updateScoreboard();
+  updateHistory();
+
+  document.getElementById('checkBtn').disabled = true;
+  document.getElementById('revealBtn').disabled = true;
+
+  const banner = document.getElementById('resultBanner');
+  const pct = correctCount / FIELDS.length;
+  let cls = 'rough', msg;
+  if (pct === 1) { cls = 'great'; msg = `Perfect! ${correctCount}/${FIELDS.length} on the ${team.name}.`; }
+  else if (pct >= 0.6) { cls = 'ok'; msg = `Solid: ${correctCount}/${FIELDS.length} on the ${team.name}.`; }
+  else { msg = `${correctCount}/${FIELDS.length} on the ${team.name}. Room to grow.`; }
+  banner.className = 'result-banner ' + cls;
+  banner.textContent = msg;
+
+  const nextWrap = document.getElementById('nextWrap');
+  nextWrap.innerHTML = '';
+  if (state.leagueMode && state.leagueQueue.length > 0) {
+    const nextBtn = document.createElement('button');
+    nextBtn.className = 'actionbar';
+    nextBtn.style.cssText = 'width:100%;padding:14px;border-radius:12px;border:1px solid #2a3a5c;background:var(--accent);color:#fff;font-weight:700;font-size:0.95rem;';
+    nextBtn.textContent = `Next Team (${state.leagueQueue.length} remaining) →`;
+    nextBtn.onclick = () => {
+      const t = state.leagueQueue.shift();
+      renderCard(t);
+      document.getElementById('checkBtn').disabled = false;
+      document.getElementById('revealBtn').disabled = false;
+    };
+    nextWrap.appendChild(nextBtn);
+  } else if (state.leagueMode) {
+    banner.textContent += ` — League complete! Final: ${state.correct}/${state.total}`;
+    state.leagueMode = false;
+  }
+}
+
+function updateScoreboard() {
+  document.getElementById('scoreLine').textContent = `${state.correct}/${state.total}`;
+  document.getElementById('accLine').textContent = state.total ? Math.round(100 * state.correct / state.total) + '%' : '';
+}
+function updateHistory() {
+  const hist = document.getElementById('history');
+  const body = document.getElementById('historyBody');
+  if (state.history.length === 0) { hist.style.display = 'none'; return; }
+  hist.style.display = 'block';
+  body.innerHTML = '';
+  state.history.slice().reverse().forEach(h => {
+    const tr = document.createElement('tr');
+    const td1 = document.createElement('td'); td1.textContent = h.name;
+    const td2 = document.createElement('td'); td2.textContent = h.score;
+    tr.appendChild(td1); tr.appendChild(td2);
+    body.appendChild(tr);
+  });
+}
+
+document.getElementById('checkBtn').onclick = () => checkAnswers();
+document.getElementById('revealBtn').onclick = () => checkAnswers(true);
+
+showEmptyState();
+updateScoreboard();
+
+if ('serviceWorker' in navigator) {
+  // no-op placeholder: keeping app fully functional offline is unnecessary for a static trivia file
+}
+</script>
+</body>
+</html>
