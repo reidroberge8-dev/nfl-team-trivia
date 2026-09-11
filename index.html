@@ -242,6 +242,7 @@
   <div class="actionbar" id="actionbar" style="display:none;">
     <button id="checkBtn" class="primary">Check Answers</button>
     <button id="revealBtn">Reveal</button>
+    <button id="nextBtn" class="primary" style="display:none;">Next Team →</button>
   </div>
 
   <div class="sheet-backdrop" id="sheetBackdrop"></div>
@@ -411,14 +412,12 @@ function renderCard(team) {
   banner.id = 'resultBanner';
   card.appendChild(banner);
 
-  const nextWrap = document.createElement('div');
-  nextWrap.id = 'nextWrap';
-  nextWrap.style.marginTop = '10px';
-  card.appendChild(nextWrap);
-
   document.getElementById('actionbar').style.display = 'flex';
   document.getElementById('checkBtn').disabled = false;
   document.getElementById('revealBtn').disabled = false;
+  document.getElementById('checkBtn').style.display = 'block';
+  document.getElementById('revealBtn').style.display = 'block';
+  document.getElementById('nextBtn').style.display = 'none';
   document.getElementById('content').scrollTop = 0;
 }
 
@@ -463,8 +462,12 @@ function finalizeTeam(team, correctCount) {
   updateScoreboard();
   updateHistory();
 
-  document.getElementById('checkBtn').disabled = true;
-  document.getElementById('revealBtn').disabled = true;
+  const checkBtn = document.getElementById('checkBtn');
+  const revealBtn = document.getElementById('revealBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  checkBtn.style.display = 'none';
+  revealBtn.style.display = 'none';
+  nextBtn.style.display = 'block';
 
   const banner = document.getElementById('resultBanner');
   const pct = correctCount / FIELDS.length;
@@ -475,23 +478,20 @@ function finalizeTeam(team, correctCount) {
   banner.className = 'result-banner ' + cls;
   banner.textContent = msg;
 
-  const nextWrap = document.getElementById('nextWrap');
-  nextWrap.innerHTML = '';
   if (state.leagueMode && state.leagueQueue.length > 0) {
-    const nextBtn = document.createElement('button');
-    nextBtn.className = 'actionbar';
-    nextBtn.style.cssText = 'width:100%;padding:14px;border-radius:12px;border:1px solid #2a3a5c;background:var(--accent);color:#fff;font-weight:700;font-size:0.95rem;';
     nextBtn.textContent = `Next Team (${state.leagueQueue.length} remaining) →`;
     nextBtn.onclick = () => {
       const t = state.leagueQueue.shift();
       renderCard(t);
-      document.getElementById('checkBtn').disabled = false;
-      document.getElementById('revealBtn').disabled = false;
     };
-    nextWrap.appendChild(nextBtn);
   } else if (state.leagueMode) {
     banner.textContent += ` — League complete! Final: ${state.correct}/${state.total}`;
     state.leagueMode = false;
+    nextBtn.textContent = '🏁 Pick a New Team';
+    nextBtn.onclick = () => openSheet();
+  } else {
+    nextBtn.textContent = 'Choose Another Team →';
+    nextBtn.onclick = () => openSheet();
   }
 }
 
